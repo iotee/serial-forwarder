@@ -89,9 +89,12 @@ string SFControl::getHelpMessage(string msg)
         // genral help message for command line arguments
         helpMessage << "sf - Controls (starting/stopping) several SFs on one machine" << endl << endl
         << "Usage : sf" << endl
-        << "or    : sf control-port PORT_NUMBER daemon" << endl << endl
+        << "or    : sf control-port PORT_NUMBER DATA_PORT DEVICE_NAME BAUDRATE" << endl << endl
         << "Arguments:" << endl
-        << "        control-port PORT_NUMBER : TCP port on which commands are accepted" << endl 
+        << "        control-port PORT_NUMBER : TCP port on which commands are accepted" << endl
+        << "        DATA_PORT : TCP port for data" << endl
+        << "        DEVICE_NAME : Serial device name e.g. /dev/ttyAMA0" << endl
+        << "        BAUDRATE : Serial port baudrate" << endl
         << "        daemon : this switch (if present) makes sf aware that it may be running as a daemon " << endl << endl
         << "Info:" << endl
         << "        If sf is started without arguments it listen on " << endl
@@ -177,6 +180,8 @@ void SFControl::parseArgs(int argc, char *argv[])
     {
         os << ">> Starting sf-control." << endl;
         os << ">> Accepting commands on standard input..." << endl;
+        os << ">> " << endl;
+        os << getHelpMessage("help arguments");
         deliverOutput();
         // test standard port before
     }
