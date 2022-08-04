@@ -45,12 +45,33 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <stdint.h>
+#include <string_view>
+#include <iomanip>
+
+#include "packetanalyzer.h"
 
 using namespace std;
 
 /* forward declarations of pthrad helper functions*/
 void* readSerialThread(void*);
 void* writeSerialThread(void*);
+
+
+static void printPacket (std::string_view header, const SFPacket &packet)
+{
+    const char *payload = packet.getPayload();
+    const int length = packet.getLength();
+
+    std::cout << header << " (" << std::dec << length << ") : ";
+
+    for (int i = 0; i < length; ++i)
+    {
+        std::cout << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (unsigned int)payload[i];
+    }
+    std::cout << std::endl;
+
+    return;
+}
 
 tcflag_t SerialComm::parseBaudrate(int requested)
 {
@@ -244,8 +265,11 @@ tcflag_t SerialComm::parseBaudrate(int requested)
     return baudrate;
 }
 
-SerialComm::SerialComm(const char* pDevice, int pBaudrate, PacketBuffer &pReadBuffer, PacketBuffer &pWriteBuffer, sharedControlInfo_t& pControl) : readBuffer(pReadBuffer), writeBuffer(pWriteBuffer), droppedReadPacketCount(0), droppedWritePacketCount(0), readPacketCount(0), writtenPacketCount(0), badPacketCount(0), sumRetries(0), device(pDevice), baudrate(pBaudrate), serialReadFD(-1), serialWriteFD(-1), errorReported(false), errorMsg(""), control(pControl)
+SerialComm::SerialComm(const char* pDevice, int pBaudrate, PacketBuffer &pReadBuffer, PacketBuffer &pWriteBuffer, sharedControlInfo_t& pControl, std::unique_ptr<packetanalyzer> packetAnalyzer) : readBuffer(pReadBuffer), writeBuffer(pWriteBuffer), droppedReadPacketCount(0), droppedWritePacketCount(0), readPacketCount(0), writtenPacketCount(0), badPacketCount(0), sumRetries(0), device(pDevice), baudrate(pBaudrate), serialReadFD(-1), serialWriteFD(-1), errorReported(false), errorMsg(""), control(pControl)
 {
+    this->packetAnalyzer = std::move(packetAnalyzer);
+    pthread_mutex_init(&packetAnalyzerMutex, NULL);
+	
     writerThreadRunning = false;
     readerThreadRunning = false;
     rawFifo.head = rawFifo.tail = 0;
@@ -313,6 +337,8 @@ SerialComm::SerialComm(const char* pDevice, int pBaudrate, PacketBuffer &pReadBu
 SerialComm::~SerialComm()
 {
     cancel();
+
+    pthread_mutex_destroy(&packetAnalyzerMutex);
 
     pthread_mutex_destroy(&ack.lock);
     pthread_cond_destroy(&ack.received);
@@ -456,6 +482,9 @@ bool SerialComm::readPacket(SFPacket &pPacket)
                                   << static_cast<uint16_t>(buffer[typeOffset] & 0xff));
                             break;
                         }
+
+                        printPacket("READING", pPacket);
+
                         if(dobreak) break; // leave loop
                     }
                     else {
@@ -591,6 +620,21 @@ void SerialComm::readSerial()
     {
         SFPacket packet;
         readPacket(packet);
+
+        rawpacket_t rawpacket;
+        rawpacket.payload = packet.getPayload();
+        rawpacket.length = packet.getLength();
+
+        pthread_mutex_lock(&packetAnalyzerMutex);
+        const bool isPacketDropped = packetAnalyzer->filterReadingPacket(rawpacket);
+        pthread_mutex_unlock(&packetAnalyzerMutex);
+
+        if (isPacketDropped == true)
+        {
+            cerr << " SerialComm::readSerial : dropped packet by extra filter " << endl;
+            continue;
+        }
+
         switch (packet.getType())
 	{
 	case SF_ACK:
@@ -645,9 +689,41 @@ void SerialComm::writeSerial()
     {
         if (!retry)
 	{
-            cerr << " serial deqeue packet, empty: " << writeBuffer.isEmpty() << endl;
-            packet = writeBuffer.dequeue();
+            extrapacket_t extrapacket;
+
+            pthread_mutex_lock(&packetAnalyzerMutex);
+            const bool isExtraPacketToWrite = packetAnalyzer->getExtraWritingPacket(extrapacket);
+            pthread_mutex_unlock(&packetAnalyzerMutex);
+
+            if (isExtraPacketToWrite == false)
+            {
+                cerr << " serial deqeue packet, empty: " << writeBuffer.isEmpty() << endl;
+                packet = writeBuffer.dequeue();
+
+                rawpacket_t rawpacket;
+                rawpacket.payload = packet.getPayload();
+                rawpacket.length = packet.getLength();
+
+                pthread_mutex_lock(&packetAnalyzerMutex);
+                const bool isPacketDropped = packetAnalyzer->filterWritingPacket(rawpacket);
+                pthread_mutex_unlock(&packetAnalyzerMutex);
+                
+                if (isPacketDropped == true)
+                {
+                    cerr << " SerialComm::writeSerial : dropped packet by extra filter " << endl;
+                    continue;
+                }
+            }
+            else
+            {
+                packet.setPayload(extrapacket.payload, extrapacket.length);
+                packet.setSeqno(0);
+                packet.setType(SF_PACKET_ACK);
+            }
 	}
+
+    printPacket("WRITING", packet);
+
         switch (packet.getType())
 	{
 	case SF_ACK:

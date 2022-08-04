@@ -51,9 +51,14 @@
 #include <signal.h>
 #endif
 
+#include "packetanalyzer.h"
+
 using namespace std;
 
-
+std::unique_ptr<packetanalyzer> createPacketAnalyzer ()
+{
+  return std::make_unique<packetanalyzer>();
+}
 
 int main(int argc, char *argv[])
 {
@@ -62,8 +67,10 @@ int main(int argc, char *argv[])
     if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
         cerr << "Warning: failed to ignore SIGPIPE " << endl;
 #endif
+
+  std::function<std::unique_ptr<packetanalyzer>()> analyzerFactory = createPacketAnalyzer;
     
-  SFControl control;
+  SFControl control { analyzerFactory };
   control.parseArgs(argc, argv);
   control.waitOnInput();
 
