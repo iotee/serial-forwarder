@@ -12,17 +12,17 @@ packetanalyzer::packetanalyzer () = default;
 packetanalyzer::~packetanalyzer () = default;
 
 
-bool packetanalyzer::getExtraWritingPacket (extrapacket_t &extrapacket)
+bool packetanalyzer::getExtraWritingPacket ([[maybe_unused]] extrapacket_t &extrapacket)
 {
     return false;
 }
 
-bool packetanalyzer::filterWritingPacket (const rawpacket_t &rawpacket)
+bool packetanalyzer::filterWritingPacket ([[maybe_unused]] const rawpacket_t &rawpacket)
 {
     return false;
 }
 
-bool packetanalyzer::filterReadingPacket (const rawpacket_t &rawpacket)
+bool packetanalyzer::filterReadingPacket ([[maybe_unused]] const rawpacket_t &rawpacket)
 {
     return false;
 }
