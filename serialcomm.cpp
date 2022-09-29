@@ -483,7 +483,7 @@ bool SerialComm::readPacket(SFPacket &pPacket)
                             break;
                         }
 
-                        printPacket("SerialComm::readPacket", pPacket);
+                        printPacket(" SerialComm::readPacket", pPacket);
 
                         if(dobreak) break; // leave loop
                     }
@@ -700,7 +700,7 @@ void SerialComm::writeSerial()
                 cerr << " serial deqeue packet, empty: " << writeBuffer.isEmpty() << endl;
                 packet = writeBuffer.dequeue();
                 
-                printPacket("SerialComm::writeSerial", packet);
+                printPacket(" SerialComm::writeSerial", packet);
 
                 rawpacket_t rawpacket;
                 rawpacket.payload = packet.getPayload();
@@ -722,7 +722,7 @@ void SerialComm::writeSerial()
                 packet.setSeqno(0);
                 packet.setType(SF_PACKET_ACK);
                 
-                printPacket("SerialComm::writeSerial", packet);
+                printPacket(" SerialComm::writeSerial", packet);
             }
 	}
 
