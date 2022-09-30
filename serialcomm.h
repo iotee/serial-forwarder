@@ -44,6 +44,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <memory>
 
 // #define DEBUG_SERIALCOMM
 // #define DEBUG_RAW_SERIALCOMM
@@ -56,6 +57,7 @@
 #define DEBUG(message)
 #endif
 
+class packetanalyzer;
 
 class SerialComm : public BaseComm
 {
@@ -90,6 +92,10 @@ protected:
     
     /** Member vars */
 protected:
+    /* extra analyzer for input and output packets */
+	std::unique_ptr<packetanalyzer> packetAnalyzer;
+    pthread_mutex_t packetAnalyzerMutex;
+
     /* pthread for serial reading */
     pthread_t readerThread;
 
@@ -247,7 +253,7 @@ protected:
     void writeSerial();
     
 public:
-    SerialComm(const char* pDevice, int pBaudrate, PacketBuffer &pReadBuffer, PacketBuffer &pWriteBuffer,  sharedControlInfo_t& pControl);
+    SerialComm(const char* pDevice, int pBaudrate, PacketBuffer &pReadBuffer, PacketBuffer &pWriteBuffer,  sharedControlInfo_t& pControl, std::unique_ptr<packetanalyzer> packetAnalyzer);
 
     ~SerialComm();
 

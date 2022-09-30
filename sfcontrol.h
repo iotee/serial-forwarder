@@ -40,6 +40,10 @@
 #include "pthread.h"
 #include <vector>
 #include <string>
+#include <memory>
+#include <functional>
+
+class packetanalyzer;
 
 class SFControl
 {
@@ -54,6 +58,9 @@ protected:
         int id;
     }
     sfServer_t;
+
+    /* extra analyzer temporary object */
+    std::function<std::unique_ptr<packetanalyzer>()> analyzerFactory;
 
     /* needed to get informed about canceled threads */
     sharedControlInfo_t sfControlInfo;
@@ -98,7 +105,7 @@ protected:
 
 public:
 
-    SFControl();
+    SFControl(std::function<std::unique_ptr<packetanalyzer>()> analyzerFactory);
 
     ~SFControl();
 

@@ -49,14 +49,17 @@
 #include <fstream>
 #include <list>
 
+#include "packetanalyzer.h"
 
 using namespace std;
 
 /* forward declarations of pthrad helper functions*/
 void* checkCancelThread(void*);
 
-SFControl::SFControl()
+SFControl::SFControl(std::function<std::unique_ptr<packetanalyzer>()> analyzerFactory)
 {
+    this->analyzerFactory = analyzerFactory;
+    
     servers.clear();
     pthread_mutex_init(&sfControlInfo.lock, NULL);
     pthread_cond_init(&sfControlInfo.cancel, NULL);
@@ -242,13 +245,15 @@ void SFControl::parseArgs(int argc, char *argv[])
 /* starts a sf-server */
 void SFControl::startServer(int port, string device, int baudrate)
 {
+    std::unique_ptr<packetanalyzer> extraPacketAnalyzer = analyzerFactory();
+
     pthread_testcancel();
     pthread_mutex_lock(&sfControlInfo.lock);
     sfServer_t newSFServer;
     newSFServer.serial2tcp = new PacketBuffer();
     newSFServer.tcp2serial = new PacketBuffer();
     newSFServer.TcpServer = new TCPComm(port, *(newSFServer.tcp2serial), *(newSFServer.serial2tcp), sfControlInfo);
-    newSFServer.SerialDevice = new SerialComm(device.c_str(), baudrate, *(newSFServer.serial2tcp), *(newSFServer.tcp2serial), sfControlInfo);
+    newSFServer.SerialDevice = new SerialComm(device.c_str(), baudrate, *(newSFServer.serial2tcp), *(newSFServer.tcp2serial), sfControlInfo, std::move(extraPacketAnalyzer));
     newSFServer.id = ++uniqueId;
     servers.push_back(newSFServer);
     pthread_mutex_unlock(&sfControlInfo.lock);

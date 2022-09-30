@@ -32,30 +32,8 @@
 #
 #
 
-
-CC=g++
-CFLAGS= -Wall -O3 -pthread
-
-all: sf
-
-sf: sf.o sfcontrol.o serialcomm.o tcpcomm.o basecomm.o packetbuffer.o sfpacket.o
-	$(CC) $(CFLAGS) sf.o sfcontrol.o serialcomm.o tcpcomm.o basecomm.o packetbuffer.o sfpacket.o -o sf
-
-%.o: %.cpp
-	$(CC) -c $(CFLAGS) $<
-
-serialcomm.o: serialcomm.cpp serialcomm.h basecomm.h sfpacket.h packetbuffer.h sharedinfo.h
-
-tcpcomm.o: tcpcomm.cpp sharedinfo.h tcpcomm.h sfpacket.h packetbuffer.h basecomm.h
-
-sfpacket.o: sfpacket.cpp sfpacket.h serialprotocol.h
-
-basecomm.o: basecomm.cpp basecomm.h 
-
-sfcontrol.o: sfcontrol.cpp sfcontrol.h sharedinfo.h packetbuffer.h tcpcomm.h serialcomm.h
-
-packetbuffer.o: packetbuffer.cpp packetbuffer.h sfpacket.h
+all:
+	g++ -std=c++17 -Wall -O3 -pthread serialcomm.cpp tcpcomm.cpp sfpacket.cpp basecomm.cpp sfcontrol.cpp packetbuffer.cpp packetanalyzer.cpp sf.cpp -o sf
 
 clean:
 	rm -rf *.o sf
-
